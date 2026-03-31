@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kalshi Trading Dashboard</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2d3150;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --blue: #3b82f6;
+      --purple: #a78bfa;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.05em; color: var(--purple); }
+    #mode-badge {
+      padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+      letter-spacing: 0.1em;
+    }
+    .mode-sandbox { background: #1c3a2a; color: var(--green); border: 1px solid var(--green); }
+    .mode-live    { background: #3a1c1c; color: var(--red);   border: 1px solid var(--red); }
+
+    #refresh-status { color: var(--muted); font-size: 11px; }
+
+    .main { padding: 24px; display: grid; gap: 20px; }
+
+    /* Stats row */
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 16px 20px;
+    }
+    .stat-label { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+    .stat-value { font-size: 26px; font-weight: 700; }
+    .stat-value.green { color: var(--green); }
+    .stat-value.red   { color: var(--red); }
+    .stat-value.yellow{ color: var(--yellow); }
+    .stat-value.blue  { color: var(--blue); }
+
+    /* Budget bar */
+    .budget-bar-wrap {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px;
+    }
+    .budget-bar-label { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; display: flex; justify-content: space-between; }
+    .budget-bar-track { height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+    .budget-bar-fill  { height: 100%; background: var(--blue); border-radius: 4px; transition: width 0.4s; }
+
+    /* Section */
+    .section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .section-header {
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-title { font-size: 13px; font-weight: 700; letter-spacing: 0.05em; }
+    .badge { background: var(--surface2); color: var(--muted); border-radius: 20px; padding: 2px 8px; font-size: 11px; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+
+    .tag-yes { color: var(--green); }
+    .tag-no  { color: var(--red); }
+    .tag-buy { color: var(--blue); }
+    .tag-sell{ color: var(--yellow); }
+
+    .reasoning-cell { max-width: 400px; color: var(--muted); line-height: 1.5; }
+    details summary { cursor: pointer; color: var(--blue); }
+    details[open] summary { margin-bottom: 6px; }
+
+    .empty-state { padding: 32px; text-align: center; color: var(--muted); }
+
+    .pnl-positive { color: var(--green); }
+    .pnl-negative { color: var(--red); }
+    .pnl-neutral  { color: var(--muted); }
+
+    /* Cycles */
+    .cycle-row td:first-child { color: var(--muted); font-size: 11px; }
+    .cycle-summary { color: var(--muted); max-width: 500px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Kalshi Trading Dashboard</h1>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <span id="refresh-status">Loading...</span>
+    <span id="mode-badge" class="mode-sandbox">SANDBOX</span>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Stats row -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Balance</div>
+      <div class="stat-value blue" id="stat-balance">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Invested</div>
+      <div class="stat-value yellow" id="stat-invested">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Remaining</div>
+      <div class="stat-value green" id="stat-remaining">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Open Positions</div>
+      <div class="stat-value" id="stat-positions">—</div>
+    </div>
+  </div>
+
+  <!-- Budget bar -->
+  <div class="budget-bar-wrap">
+    <div class="budget-bar-label">
+      <span>Budget Usage</span>
+      <span id="budget-bar-pct">0%</span>
+    </div>
+    <div class="budget-bar-track">
+      <div class="budget-bar-fill" id="budget-bar-fill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- Open Positions -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Open Positions</span>
+      <span class="badge" id="positions-count">0</span>
+    </div>
+    <div id="positions-body">
+      <div class="empty-state">No open positions yet.</div>
+    </div>
+  </div>
+
+  <!-- Trade History -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Trade History</span>
+      <span class="badge" id="trades-count">0</span>
+    </div>
+    <div id="trades-body">
+      <div class="empty-state">No trades yet.</div>
+    </div>
+  </div>
+
+  <!-- Cycle Log -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Agent Cycle Log</span>
+      <span class="badge" id="cycles-count">0</span>
+    </div>
+    <div id="cycles-body">
+      <div class="empty-state">No cycles run yet.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function fmt(val) {
+  if (val === null || val === undefined) return '—';
+  return '$' + parseFloat(val).toFixed(2);
+}
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString();
+  } catch { return iso; }
+}
+
+function pnlClass(v) {
+  if (!v && v !== 0) return 'pnl-neutral';
+  return v > 0 ? 'pnl-positive' : v < 0 ? 'pnl-negative' : 'pnl-neutral';
+}
+
+async function refresh() {
+  try {
+    const res = await fetch('/api/state');
+    const d = await res.json();
+
+    // Mode badge
+    const badge = document.getElementById('mode-badge');
+    badge.textContent = d.mode;
+    badge.className = d.mode === 'SANDBOX' ? 'mode-sandbox' : 'mode-live';
+
+    // Stats
+    document.getElementById('stat-balance').textContent = fmt(d.balance);
+    document.getElementById('stat-invested').textContent = fmt(d.total_invested);
+    document.getElementById('stat-remaining').textContent = fmt(d.remaining_budget);
+    document.getElementById('stat-positions').textContent = d.positions.length;
+
+    // Budget bar
+    const pct = d.budget_cap > 0 ? Math.min(100, (d.total_invested / d.budget_cap) * 100) : 0;
+    document.getElementById('budget-bar-fill').style.width = pct + '%';
+    document.getElementById('budget-bar-pct').textContent = pct.toFixed(1) + '%';
+    // Color the bar red if > 80%
+    document.getElementById('budget-bar-fill').style.background = pct > 80 ? '#ef4444' : pct > 50 ? '#f59e0b' : '#3b82f6';
+
+    // Positions
+    document.getElementById('positions-count').textContent = d.positions.length;
+    if (d.positions.length === 0) {
+      document.getElementById('positions-body').innerHTML = '<div class="empty-state">No open positions yet.</div>';
+    } else {
+      let html = '<table><thead><tr><th>Market</th><th>Ticker</th><th>Side</th><th>Contracts</th><th>Cost</th><th>P&L</th><th>Closes</th></tr></thead><tbody>';
+      for (const p of d.positions) {
+        const net = p.position || 0;
+        const side = net > 0 ? '<span class="tag-yes">YES</span>' : '<span class="tag-no">NO</span>';
+        const pnl = p.realized_pnl || 0;
+        html += `<tr>
+          <td>${p.title || p.ticker}</td>
+          <td>${p.ticker}</td>
+          <td>${side}</td>
+          <td>${Math.abs(net)}</td>
+          <td>${fmt(p.cost)}</td>
+          <td class="${pnlClass(pnl)}">${fmt(pnl)}</td>
+          <td>${p.close_time ? fmtTime(p.close_time) : '—'}</td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      document.getElementById('positions-body').innerHTML = html;
+    }
+
+    // Trades
+    document.getElementById('trades-count').textContent = d.recent_trades.length;
+    if (d.recent_trades.length === 0) {
+      document.getElementById('trades-body').innerHTML = '<div class="empty-state">No trades yet.</div>';
+    } else {
+      let html = '<table><thead><tr><th>Time</th><th>Market</th><th>Side</th><th>Action</th><th>#</th><th>Price</th><th>Cost</th><th>Status</th><th>Reasoning</th></tr></thead><tbody>';
+      for (const t of d.recent_trades) {
+        const sideClass = t.side === 'yes' ? 'tag-yes' : 'tag-no';
+        const actionClass = t.action === 'buy' ? 'tag-buy' : 'tag-sell';
+        const reasoning = t.reasoning ? `<details><summary>View</summary>${t.reasoning}</details>` : '—';
+        html += `<tr>
+          <td>${fmtTime(t.timestamp)}</td>
+          <td>${t.market_title || t.ticker}</td>
+          <td><span class="${sideClass}">${(t.side||'').toUpperCase()}</span></td>
+          <td><span class="${actionClass}">${(t.action||'').toUpperCase()}</span></td>
+          <td>${t.count}</td>
+          <td>${t.price_cents}¢</td>
+          <td>${fmt(t.total_cost)}</td>
+          <td>${t.status}</td>
+          <td class="reasoning-cell">${reasoning}</td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      document.getElementById('trades-body').innerHTML = html;
+    }
+
+    // Cycles
+    document.getElementById('cycles-count').textContent = d.recent_cycles.length;
+    if (d.recent_cycles.length === 0) {
+      document.getElementById('cycles-body').innerHTML = '<div class="empty-state">No cycles run yet.</div>';
+    } else {
+      let html = '<table><thead><tr><th>Time</th><th>Markets Scanned</th><th>Trades Made</th><th>Balance After</th><th>Invested</th><th>Summary</th></tr></thead><tbody>';
+      for (const c of d.recent_cycles) {
+        html += `<tr class="cycle-row">
+          <td>${fmtTime(c.timestamp)}</td>
+          <td>${c.markets_scanned}</td>
+          <td>${c.trades_made}</td>
+          <td>${fmt(c.balance_after)}</td>
+          <td>${fmt(c.total_invested)}</td>
+          <td class="cycle-summary">${c.summary || '—'}</td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      document.getElementById('cycles-body').innerHTML = html;
+    }
+
+    document.getElementById('refresh-status').textContent = 'Updated ' + new Date().toLocaleTimeString();
+
+  } catch (err) {
+    document.getElementById('refresh-status').textContent = 'Error: ' + err.message;
+  }
+}
+
+refresh();
+setInterval(refresh, 60000);
+</script>
+</body>
+</html>

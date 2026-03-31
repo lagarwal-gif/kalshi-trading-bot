@@ -1,0 +1,9 @@
+kalshi-python
+anthropic
+tavily-python
+fastapi
+uvicorn[standard]
+jinja2
+python-dotenv
+schedule
+requests
